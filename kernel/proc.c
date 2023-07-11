@@ -137,6 +137,7 @@ found:
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
+  p->trace_mask=0;
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
@@ -304,7 +305,8 @@ fork(void)
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
-
+  //子进程继承父进程
+  np->trace_mask = p->trace_mask;
   release(&np->lock);
 
   acquire(&wait_lock);
@@ -653,4 +655,18 @@ procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+//获取进程数量
+uint64
+process_num(void)
+{
+  uint64 res=0;
+  struct proc *p;
+  for(p = proc; p < &proc[NPROC]; p++) {
+    if(p->state != UNUSED) { // 寻找不是 UNUSED 的进程位
+        res++;
+    }
+  }
+  return res;
 }

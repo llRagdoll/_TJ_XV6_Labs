@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
+#include"sysinfo.h"
 
 uint64
 sys_exit(void)
@@ -94,4 +95,35 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_trace(void)
+{
+int mask;
+
+if(argint(0, &mask) < 0)
+	return -1;
+else{
+  myproc()->trace_mask = mask;
+}
+return 0;
+}
+
+uint64
+sys_sysinfo(void)
+{
+  //从用户进程的内存中获取地址值，并将其存储在 addr 变量中
+  uint64 addr;
+  if(argaddr(0, &addr) < 0)
+    return -1;
+  
+  struct sysinfo sys_info;
+  sys_info.freemem = kfree_mem(); // 获取空闲空间
+  sys_info.nproc = process_num(); //获取进程数量
+
+  if(copyout(myproc()->pagetable, addr, (char *)&sys_info, sizeof(sys_info)) < 0)
+    return -1;
+
+  return 0;
 }
