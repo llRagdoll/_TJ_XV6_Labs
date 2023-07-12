@@ -81,6 +81,33 @@ int
 sys_pgaccess(void)
 {
   // lab pgtbl: your code here.
+  uint64 va,ua;
+  int pg_num=0;
+  if(argaddr(0, &va) < 0)
+    return -1; 
+  if(argaddr(2, &ua) < 0)
+    return -1;
+  if(argint(1, &pg_num) < 0)
+    return -1;
+  else if(pg_num>PGMAX){
+    printf("The number is too large\n");
+    return -1;
+  }
+ 
+  struct proc* p=myproc();
+  uint64 mask;
+  pagetable_t pg;
+  for(int i=0;i<pg_num;++i){
+    if((pg=walk(p->pagetable,va+PGSIZE*i,0))==0)
+     continue;
+    if (PTE_A & *pg)
+    {
+      mask |= 1<<i;
+      *pg &= ~PTE_A;//清空access bit
+    }
+  }
+  copyout( p->pagetable , ua , (char*)&mask , sizeof(mask));
+
   return 0;
 }
 #endif
