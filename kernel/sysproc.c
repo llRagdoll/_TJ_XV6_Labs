@@ -94,21 +94,7 @@ sys_pgaccess(void)
     return -1;
   }
  
-  struct proc* p=myproc();
-  uint64 mask;
-  pagetable_t pg;
-  for(int i=0;i<pg_num;++i){
-    if((pg=walk(p->pagetable,va+PGSIZE*i,0))==0)
-     continue;
-    if (PTE_A & *pg)
-    {
-      mask |= 1<<i;
-      *pg &= ~PTE_A;//清空access bit
-    }
-  }
-  copyout( p->pagetable , ua , (char*)&mask , sizeof(mask));
-
-  return 0;
+  return  pgaccess(va,ua,pg_num);
 }
 #endif
 
