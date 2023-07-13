@@ -83,9 +83,7 @@ usertrap(void)
       if(p->times==p->interval&&p->ison==0){
         p->ison=1;
         memmove(p->sigtrapframe, p->trapframe, sizeof (struct trapframe));
-        int tmp=p->trapframe->epc;
         p->trapframe->epc = p->sigfunc_a;
-        p->sigfunc_a=tmp;
       }
     }
     yield();

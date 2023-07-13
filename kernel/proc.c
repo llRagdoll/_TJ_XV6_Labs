@@ -115,17 +115,6 @@ allocproc(void)
     }
   }
 
-  if((p->sigtrapframe = (struct trapframe *)kalloc()) == 0){
-      freeproc(p);
-      release(&p->lock);
-      return 0;
-  }
-
-  p->interval = 0;
-  p->times = 0;
-  p->ison = 0;
-  p->sigfunc_a=0;
-
   return 0;
 
 found:
@@ -153,6 +142,17 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  if((p->sigtrapframe = (struct trapframe *)kalloc()) == 0){
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+
+  p->interval = 0;
+  p->times = 0;
+  p->ison = 0;
+  p->sigfunc_a=0;
+
   return p;
 }
 
@@ -166,10 +166,10 @@ freeproc(struct proc *p)
     kfree((void*)p->trapframe);
   p->trapframe = 0;
   if(p->pagetable)
-    proc_freepagetable(p->pagetable, p->sz);
+    proc_freepagetable(p->pagetable, p->sz); 
+   p->pagetable = 0;
   if(p->sigtrapframe)
-    kfree((void*)p->sigtrapframe);
-  p->pagetable = 0;
+    kfree((void*)p->sigtrapframe); 
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
