@@ -29,6 +29,38 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+
+int 
+cowfunc(uint64 va,pagetable_t pgtbl)
+{
+  char* mem;
+  if(va>MAXVA)
+    return -1;
+  //分配新页
+  if ((mem=kalloc())==0) {
+      return -1;
+  }
+  pte_t *pte;
+  if((pte=walk(pgtbl, va, 0))==0)
+    return -1;
+  //必须满足三个PTE条件
+  if ((*pte & PTE_V) == 0 || (*pte & PTE_U) == 0 || (*pte & PTE_RSW) == 0) {
+    return -1;
+  }
+  //把旧的拷贝到新的空间
+  uint64 pa = PTE2PA(*pte);
+  memmove((char*)mem, (char*)pa, PGSIZE);
+  //引用次数-1
+  kfree((void*)pa);
+  //设置为可写
+  uint flags = PTE_FLAGS(*pte);
+  *pte = (PA2PTE(mem) | flags | PTE_W);
+  *pte &= ~PTE_RSW;
+  return 0;
+
+}
+
+
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -65,6 +97,14 @@ usertrap(void)
     intr_on();
 
     syscall();
+  } else if(r_scause()==15){//写权限错误
+      uint64 va=r_stval();
+    if (va >= p->sz)//如果虚拟地址无效
+      p->killed=1;
+    if(cowfunc(va,p->pagetable)!=0){
+      p->killed=1;
+    }
+
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {
