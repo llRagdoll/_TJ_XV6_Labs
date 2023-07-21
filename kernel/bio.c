@@ -23,33 +23,37 @@
 #include "fs.h"
 #include "buf.h"
 
+#define BUCKET_NUM 17
+#define BUFFER_SIZE 5
+
 struct {
   struct spinlock lock;
-  struct buf buf[NBUF];
+  struct buf buf[BUFFER_SIZE];
 
   // Linked list of all buffers, through prev/next.
   // Sorted by how recently the buffer was used.
   // head.next is most recent, head.prev is least.
   struct buf head;
-} bcache;
+} bcache[BUFFER_SIZE];
 
 void
 binit(void)
 {
   struct buf *b;
-
-  initlock(&bcache.lock, "bcache");
+  for(int i=0;i<BUCKET_NUM;++i){
+  initlock(&bcache[i].lock, "bcache");
 
   // Create linked list of buffers
-  bcache.head.prev = &bcache.head;
-  bcache.head.next = &bcache.head;
-  for(b = bcache.buf; b < bcache.buf+NBUF; b++){
-    b->next = bcache.head.next;
-    b->prev = &bcache.head;
-    initsleeplock(&b->lock, "buffer");
-    bcache.head.next->prev = b;
-    bcache.head.next = b;
-  }
+  // bcache.head.prev = &bcache.head;
+  // bcache.head.next = &bcache.head;
+    for(int j=0;j<BUFFER_SIZE;++j){
+      // b->next = bcache.head.next;
+      // b->prev = &bcache.head;
+      initsleeplock(&b->lock, "buffer");
+      // bcache.head.next->prev = b;
+      // bcache.head.next = b;
+    }
+}
 }
 
 // Look through buffer cache for block on device dev.
@@ -138,16 +142,18 @@ brelse(struct buf *b)
 
 void
 bpin(struct buf *b) {
-  acquire(&bcache.lock);
+  int bucket=(b->blockno%BUCKET_NUM);
+  acquire(&bcache[bucket].lock);
   b->refcnt++;
-  release(&bcache.lock);
+  release(&bcache[bucket].lock);
 }
 
 void
 bunpin(struct buf *b) {
-  acquire(&bcache.lock);
+  int bucket=(b->blockno%BUCKET_NUM);
+  acquire(&bcache[bucket].lock);
   b->refcnt--;
-  release(&bcache.lock);
+  release(&bcache[bucket].lock);
 }
 
 
