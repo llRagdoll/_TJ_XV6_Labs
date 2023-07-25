@@ -65,6 +65,41 @@ usertrap(void)
     intr_on();
 
     syscall();
+  }else if(r_scause() == 13||r_scause() == 15){
+      uint64 va=r_stval;
+      if(va>=p->sz||PGROUNDUP(va) == PGROUNDDOWN(p->trapframe->sp)){
+        p->killed=1;
+      }
+      else{
+        for(int i=0;i<NVMA;++i){
+          if(p->VMA[i].valid&&va>=p->VMA[i].addr&&va<(p->VMA[i].addr+p->VMA[i].len)){
+            uint64 pa;
+            if((pa=(uint64)kalloc())==0){
+              p->killed=1;
+              break;
+            }
+            memset((void*)pa,0,PGSIZE);
+            struct file *vf=p->VMA[i].f;
+            ilock(vf->ip);
+            int offset=PGROUNDDOWN(va-p->VMA[i].addr);
+            if((readi(vf->ip, 0, pa, offset, PGSIZE))==0){
+              iunlock(vf->ip);
+              kfree((void*)pa);
+              p->killed=1;
+              break;
+            }
+            iunlock(vf->ip);
+            int flags = PTE_U | ((p->map_addr[i].prot & PROT_READ) ? PTE_R : 0) |
+                     ((p->map_addr[i].prot & PROT_WRITE) ? PTE_W : 0) |
+                     ((p->map_addr[i].prot & PROT_EXEC) ? PTE_X : 0);
+            if(mappages(p->pagetable,PGROUNDDOWN(va),PGSIZE,pa,flags)<0){
+              kfree((void*)pa);
+              p->killed=1;
+            }
+            break;
+          }
+        }
+      }
   } else if((which_dev = devintr()) != 0){
     // ok
   } else {

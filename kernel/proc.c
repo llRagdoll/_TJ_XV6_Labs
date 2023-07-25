@@ -141,6 +141,10 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
+  for(int i=0;i<NVMA;i++){
+    p->VMA[i]->valid=0;
+  }
+
   return p;
 }
 
@@ -164,6 +168,10 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  for(int i = 0; i < NVMA; i++) {
+    struct vma *v = &p->VMA[i];
+    vmaunmap(p->pagetable, v->addr, v->sz, v);
+  }
 }
 
 // Create a user page table for a given process,
@@ -311,6 +319,13 @@ fork(void)
   np->parent = p;
   release(&wait_lock);
 
+  for(int i=0;i<NVMA;++i){
+    if(p->VMA[i].valid){
+      memmove(&(np->VMA[i]),&(p->VMA[i]),sizeof(p->VMA[i]));
+      filedup(p->VMA[i].f);
+    }
+  }
+
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
@@ -372,6 +387,17 @@ exit(int status)
   p->state = ZOMBIE;
 
   release(&wait_lock);
+
+  for(int i=0;i<NVMA；++i){
+    if(p->VMA[i].valid){
+       p->VMA[i].valid=0;  
+      if((>VMA[i].prot&PROT_WRITE)||(p->VMA[i].flags&MAP_SHARED)){
+        filewrite(p->VMA[i].f,p->VMA[i].addr,p->VMA[i].len);
+      }
+      fileclose(p->VMA[i].f);
+      uvunmap(p->pagetable,p->VMA[i].addr,p->VMA[i].len/PGSIZE,1);  
+    }
+  }
 
   // Jump into the scheduler, never to return.
   sched();
