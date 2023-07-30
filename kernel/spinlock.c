@@ -8,38 +8,20 @@
 #include "proc.h"
 #include "defs.h"
 
+int
+strcmp(const char *p, const char *q)
+{
+  while(*p && *p == *q)
+    p++, q++;
+  return (uchar)*p - (uchar)*q;
+}
+
 void
 initlock(struct spinlock *lk, char *name)
 {
   lk->name = name;
   lk->locked = 0;
   lk->cpu = 0;
-}
-
-// Acquire the lock.
-// Loops (spins) until the lock is acquired.
-void
-acquire(struct spinlock *lk)
-{
-  push_off(); // disable interrupts to avoid deadlock.
-  if(holding(lk))
-    panic("acquire");
-
-  // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
-  //   a5 = 1
-  //   s1 = &lk->locked
-  //   amoswap.w.aq a5, a5, (s1)
-  while(__sync_lock_test_and_set(&lk->locked, 1) != 0)
-    ;
-
-  // Tell the C compiler and the processor to not move loads or stores
-  // past this point, to ensure that the critical section's memory
-  // references happen strictly after the lock is acquired.
-  // On RISC-V, this emits a fence instruction.
-  __sync_synchronize();
-
-  // Record info about lock acquisition for holding() and debugging.
-  lk->cpu = mycpu();
 }
 
 // Release the lock.
@@ -70,6 +52,37 @@ release(struct spinlock *lk)
 
   pop_off();
 }
+
+// Acquire the lock.
+// Loops (spins) until the lock is acquired.
+void
+acquire(struct spinlock *lk)
+{
+  push_off(); // disable interrupts to avoid deadlock.
+  if(holding(lk)){
+    // printf("%s\n",lk->name);
+    // printf("%s\n",lk->cpu->proc->name);
+    // printf("%d\n",lk->cpu->proc->pid);
+    panic("acquire");
+  }
+    
+  // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
+  //   a5 = 1
+  //   s1 = &lk->locked
+  //   amoswap.w.aq a5, a5, (s1)
+  while(__sync_lock_test_and_set(&lk->locked, 1) != 0)
+    ;
+
+  // Tell the C compiler and the processor to not move loads or stores
+  // past this point, to ensure that the critical section's memory
+  // references happen strictly after the lock is acquired.
+  // On RISC-V, this emits a fence instruction.
+  __sync_synchronize();
+
+  // Record info about lock acquisition for holding() and debugging.
+  lk->cpu = mycpu();
+}
+
 
 // Check whether this cpu is holding the lock.
 // Interrupts must be off.

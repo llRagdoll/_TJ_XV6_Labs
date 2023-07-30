@@ -272,7 +272,9 @@ fork_test(void)
   if(*(p1+PGSIZE) != 'A')
     err("fork mismatch (1)");
 
-  if((pid = fork()) < 0)
+  pid=fork();
+  printf("mypid:%d\n",pid);
+  if((pid) < 0)
     err("fork");
   if (pid == 0) {
     _v1(p1);

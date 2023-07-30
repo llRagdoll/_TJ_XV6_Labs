@@ -121,9 +121,9 @@ found:
   p->pid = allocpid();
   p->state = USED;
 
-   for(int i=0;i<NVMA;i++){
-    p->VMA[i].valid=0;
-  }
+  //  for(int i=0;i<NVMA;i++){
+  //   p->VMA[i].valid=0;
+  // }
 
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
@@ -173,7 +173,7 @@ freeproc(struct proc *p)
   p->state = UNUSED;
   // for(int i = 0; i < NVMA; i++) {
   //   struct vma *v = &p->VMA[i];
-  //   vmaunmap(p->pagetable, v->addr, v->sz, v);
+  //   uvmunmap(p->pagetable, v->addr, v->len/PGSIZE, 1);
   // }
 }
 
@@ -312,30 +312,31 @@ fork(void)
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
 
+
   safestrcpy(np->name, p->name, sizeof(p->name));
 
+  
   pid = np->pid;
 
-  release(&np->lock);
-
+  //printf("fork");
   acquire(&wait_lock);
   np->parent = p;
   release(&wait_lock);
 
   for(int i=0;i<NVMA;++i){
-    if(p->VMA[i].valid){
-      memmove(&(np->VMA[i]),&(p->VMA[i]),sizeof(p->VMA[i]));
+    if(p->VMA[i].valid==1) {
+      memmove(&(np->VMA[i]), &(p->VMA[i]), sizeof(p->VMA[i]));
       filedup(p->VMA[i].f);
     }
   }
 
-  acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
 
+//  printf("fork");
+// printf("%d\n",pid);
   return pid;
 }
-
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
 void
@@ -371,12 +372,14 @@ exit(int status)
     }
   }
 
+
   begin_op();
   iput(p->cwd);
   end_op();
   p->cwd = 0;
 
   acquire(&wait_lock);
+
 
   // Give any children to init.
   reparent(p);
@@ -390,9 +393,9 @@ exit(int status)
   p->state = ZOMBIE;
 
   release(&wait_lock);
-
+ 
   for(int i=0;i<NVMA;++i){
-    if(p->VMA[i].valid){
+    if(p->VMA[i].valid==1){
        p->VMA[i].valid=0;  
       if((p->VMA[i].prot&PROT_WRITE)||(p->VMA[i].flags&MAP_SHARED)){
         filewrite(p->VMA[i].f,p->VMA[i].addr,p->VMA[i].len);
@@ -401,12 +404,13 @@ exit(int status)
       uvmunmap(p->pagetable,p->VMA[i].addr,p->VMA[i].len/PGSIZE,1);  
     }
   }
+  
 
+  //release(&p->lock);
   // Jump into the scheduler, never to return.
   sched();
   panic("zombie exit");
 }
-
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
 int

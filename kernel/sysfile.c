@@ -494,41 +494,46 @@ sys_pipe(void)
 uint64 
 sys_mmap(void)
 {
-  int prot,flags,fd,len; 
-  uint64 addr,offset;
+  int prot,flags,fd,len,offset; 
+  uint64 addr;
   struct file *f;
-  if(argaddr(0, &addr) < 0 || argint(1, &len) < 0 || argint(2, &prot) < 0|| argint(3, &flags) < 0 || argfd(4, &fd, &f) < 0 || argaddr(5, &offset) < 0)
-    return -1;
+  uint64 mmap_error = 0xffffffffffffffff;
+  if(argaddr(0, &addr) < 0 || argint(1, &len) < 0 || argint(2, &prot) < 0|| argint(3, &flags) < 0 || argfd(4, &fd, &f) < 0 || argint(5, &offset) < 0)
+     return mmap_error;
   
   if(flags==(MAP_SHARED)&&!f->writable&&(prot&PROT_WRITE))
-    return -1;
+     return mmap_error;
 // printf("hi");
   struct proc *p = myproc();
+
+  if(p->sz>MAXVA-len)
+    return mmap_error;
+
   struct vma *v;
   int idx=0;
   for(int i=0;i<NVMA;i++){
-    printf("&%d",&p->VMA[i].valid);
+    //printf("&%d",&p->VMA[i].valid);
     if(p->VMA[i].valid!=1){
       v=&p->VMA[i];
       v->valid=1;
       v->addr=p->sz;
-      v->len = len;
-      v->prot = prot;
-      v->flags = flags;
-      v->f = f; 
-      v->offset = offset;
+      v->len=len;
+      v->prot=prot;
+      v->flags=flags;
+      v->f=f; 
+      v->offset=offset;
 
-      filedup(v->f);
+      filedup(f);
       idx=i;
-      
-      break;
+      p->sz+=len;
+      return (p->sz-len);
     }
   }
   if(idx==NVMA)
     panic("no empty VMA");
-  p->sz+=len;
-  printf("%d",addr);
-  return addr;
+  
+  //printf("hhhhd");
+   return mmap_error;
 }
 
 uint64
@@ -542,12 +547,14 @@ sys_munmap(void)
   struct proc *p=myproc();
   for(int i=0;i<NVMA;++i){
     if((p->VMA[i].addr==addr)||(p->VMA[i].addr+p->VMA[i].len==addr+len)){
-      p->VMA[i].len-=len;
       if((p->VMA[i].prot&PROT_WRITE)||(p->VMA[i].flags&MAP_SHARED)){
         filewrite(p->VMA[i].f,addr,len);
       }
+      if(p->VMA[i].addr==addr) 
+        p->VMA[i].addr+=len;
+      p->VMA[i].len-= len;
       uvmunmap(p->pagetable,addr,len/PGSIZE,1);
-      if(!p->VMA[i].len){
+      if(p->VMA[i].len==0){
         fileclose(p->VMA[i].f);
         p->VMA[i].valid=0;
       }
@@ -556,3 +563,4 @@ sys_munmap(void)
   }
   return 0;
 }
+

@@ -51,6 +51,7 @@ void
 usertrap(void)
 {
   int which_dev = 0;
+  //printf("usertrap");
 
   if((r_sstatus() & SSTATUS_SPP) != 0)
     panic("usertrap: not from user mode");
@@ -79,8 +80,8 @@ usertrap(void)
     intr_on();
 
     syscall();
-  }else if(r_scause() == 13||r_scause() == 15){
-    printf("mistake");
+  } else if(r_scause() == 13||r_scause() == 15){
+    //printf("mistake");
       uint64 va=r_stval();
       if(va>=p->sz||PGROUNDUP(va) == PGROUNDDOWN(p->trapframe->sp)){
         p->killed=1;
@@ -89,13 +90,16 @@ usertrap(void)
         for(int i=0;i<NVMA;++i){
           if(p->VMA[i].valid&&va>=p->VMA[i].addr&&va<(p->VMA[i].addr+p->VMA[i].len)){
             uint64 pa;
+            
             if((pa=(uint64)kalloc())==0){
               p->killed=1;
               break;
             }
+           
             memset((void*)pa,0,PGSIZE);
             struct file *vf=p->VMA[i].f;
-            ilock(vf->ip);
+            ilock(vf->ip); 
+            
             int offset=PGROUNDDOWN(va-p->VMA[i].addr);
             if((readi(vf->ip, 0, pa, offset, PGSIZE))==0){
               iunlock(vf->ip);
@@ -103,6 +107,7 @@ usertrap(void)
               p->killed=1;
               break;
             }
+            //printf("hhh");
             iunlock(vf->ip);
             int flags = PTE_U | ((p->VMA[i].prot & PROT_READ) ? PTE_R : 0) |
                      ((p->VMA[i].prot & PROT_WRITE) ? PTE_W : 0) |
@@ -115,7 +120,9 @@ usertrap(void)
           }
         }
       }
-  } else if((which_dev = devintr()) != 0){
+  }
+
+  else if((which_dev = devintr()) != 0){
     // ok
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
