@@ -5,6 +5,20 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
+
+#define NDIRECT 12
+
+struct file {
+  enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE } type;
+  int ref; // reference count
+  char readable;
+  char writable;
+  struct pipe *pipe; // FD_PIPE
+  struct inode *ip;  // FD_INODE and FD_DEVICE
+  uint off;          // FD_INODE
+  short major;       // FD_DEVICE
+};
 
 struct spinlock tickslock;
 uint ticks;
@@ -66,7 +80,8 @@ usertrap(void)
 
     syscall();
   }else if(r_scause() == 13||r_scause() == 15){
-      uint64 va=r_stval;
+    printf("mistake");
+      uint64 va=r_stval();
       if(va>=p->sz||PGROUNDUP(va) == PGROUNDDOWN(p->trapframe->sp)){
         p->killed=1;
       }
@@ -89,9 +104,9 @@ usertrap(void)
               break;
             }
             iunlock(vf->ip);
-            int flags = PTE_U | ((p->map_addr[i].prot & PROT_READ) ? PTE_R : 0) |
-                     ((p->map_addr[i].prot & PROT_WRITE) ? PTE_W : 0) |
-                     ((p->map_addr[i].prot & PROT_EXEC) ? PTE_X : 0);
+            int flags = PTE_U | ((p->VMA[i].prot & PROT_READ) ? PTE_R : 0) |
+                     ((p->VMA[i].prot & PROT_WRITE) ? PTE_W : 0) |
+                     ((p->VMA[i].prot & PROT_EXEC) ? PTE_X : 0);
             if(mappages(p->pagetable,PGROUNDDOWN(va),PGSIZE,pa,flags)<0){
               kfree((void*)pa);
               p->killed=1;

@@ -16,6 +16,11 @@
 #include "file.h"
 #include "fcntl.h"
 
+#define PGSIZE 4096
+#define MAXVA (1L << (9 + 9 + 9 + 12 - 1))
+#define TRAMPOLINE (MAXVA - PGSIZE)
+#define TRAPFRAME (TRAMPOLINE - PGSIZE)
+
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -490,22 +495,23 @@ uint64
 sys_mmap(void)
 {
   int prot,flags,fd,len; 
-  uint64 addr,len,offset;
+  uint64 addr,offset;
   struct file *f;
   if(argaddr(0, &addr) < 0 || argint(1, &len) < 0 || argint(2, &prot) < 0|| argint(3, &flags) < 0 || argfd(4, &fd, &f) < 0 || argaddr(5, &offset) < 0)
     return -1;
   
   if(flags==(MAP_SHARED)&&!f->writable&&(prot&PROT_WRITE))
     return -1;
-
+// printf("hi");
   struct proc *p = myproc();
   struct vma *v;
   int idx=0;
   for(int i=0;i<NVMA;i++){
-    if(&p->VMA[i].valid==0){
+    printf("&%d",&p->VMA[i].valid);
+    if(p->VMA[i].valid!=1){
       v=&p->VMA[i];
       v->valid=1;
-      v->addr=TRAPFRAME-len;
+      v->addr=p->sz;
       v->len = len;
       v->prot = prot;
       v->flags = flags;
@@ -514,13 +520,15 @@ sys_mmap(void)
 
       filedup(v->f);
       idx=i;
+      
       break;
     }
   }
   if(idx==NVMA)
     panic("no empty VMA");
   p->sz+=len;
-  return v->addr;
+  printf("%d",addr);
+  return addr;
 }
 
 uint64
@@ -528,14 +536,14 @@ sys_munmap(void)
 {
   int len;
   uint64 addr;
-  if(argaddr(0,&addr)||argint(1,&length))
+  if(argaddr(0,&addr)||argint(1,&len))
    return -1;
   
   struct proc *p=myproc();
   for(int i=0;i<NVMA;++i){
     if((p->VMA[i].addr==addr)||(p->VMA[i].addr+p->VMA[i].len==addr+len)){
       p->VMA[i].len-=len;
-      if((>VMA[i].prot&PROT_WRITE)||(p->VMA[i].flags&MAP_SHARED)){
+      if((p->VMA[i].prot&PROT_WRITE)||(p->VMA[i].flags&MAP_SHARED)){
         filewrite(p->VMA[i].f,addr,len);
       }
       uvmunmap(p->pagetable,addr,len/PGSIZE,1);

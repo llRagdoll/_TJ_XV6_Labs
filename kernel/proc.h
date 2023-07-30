@@ -86,13 +86,13 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 struct vma{
   int valid;
   uint64 addr;
-  int64 len;
+  int len;
   int prot;
   int flags;
   int fd;
   struct file *f;
   uint64 offset;
-}
+};
 
 // Per-process state
 struct proc {
