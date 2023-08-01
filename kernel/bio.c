@@ -26,6 +26,8 @@
 #define BUCKET_NUM 13
 #define BUFFER_SIZE 5
 
+
+
 struct {
   struct spinlock lock;
   struct buf buf[BUFFER_SIZE];
@@ -34,7 +36,9 @@ struct {
   // Sorted by how recently the buffer was used.
   // head.next is most recent, head.prev is least.
   struct buf head;
-} bcache[BUFFER_SIZE];
+} bcache[BUCKET_NUM];
+
+extern uint ticks;
 
 void
 binit(void)
@@ -63,14 +67,15 @@ static struct buf*
 bget(uint dev, uint blockno)
 {
   struct buf *b;
-  int bucket_num=(blockno%BUCKET_NUM);
+  int bucket_num;
+  bucket_num=(blockno%BUCKET_NUM);
 
   acquire(&bcache[bucket_num].lock);
 
   // Is the block already cached?
   for(int i=0;i<BUFFER_SIZE;++i){
     b=&bcache[bucket_num].buf[i]; 
-    if(b->dev == dev && b->blockno == blockno){
+    if(b->dev==dev&&b->blockno==blockno){
       b->lastuse=ticks;
       b->refcnt++;  
       release(&bcache[bucket_num].lock);
@@ -82,20 +87,24 @@ bget(uint dev, uint blockno)
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
   uint least=0xFFFFFFFF;
-  int least_num=0;
+  int index=-1;
   for(int i=0;i<BUFFER_SIZE;++i){
     b=&bcache[bucket_num].buf[i]; 
     if(b->refcnt==0&&b->lastuse<least){
-      least_num=i;
+      index=i;
       least=b->lastuse;
     }
   }
-  b = &bcache[bucket_num].buf[least_num];
+  if(index==-1){
+    panic("bget:no available buffer");
+  }
+  b = &bcache[bucket_num].buf[index];
+  b->lastuse = ticks;
   b->dev = dev;
   b->blockno = blockno;
-  b->lastuse = ticks;
-  b->valid = 0;
   b->refcnt = 1;
+  b->valid = 0;
+  
   release(&bcache[bucket_num].lock);
   acquiresleep(&b->lock);
 
@@ -132,8 +141,8 @@ brelse(struct buf *b)
 {
   if(!holdingsleep(&b->lock))
     panic("brelse");
-
   releasesleep(&b->lock);
+  
   int bucket_num=(b->blockno%BUCKET_NUM);
   acquire(&bcache[bucket_num].lock);
   b->refcnt--;
@@ -148,6 +157,7 @@ brelse(struct buf *b)
   // }
   
   release(&bcache[bucket_num].lock);
+  
 }
 
 void
