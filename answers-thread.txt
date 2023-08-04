@@ -1,0 +1,7 @@
+Q:Why are there missing keys with 2 threads, but not with 1 thread? 
+Identify a sequence of events with 2 threads that can lead to a key being missing. 
+A:
+线程A和线程B同时执行 put() 操作。
+线程A执行 put() 操作后，计算出了键的哈希值，并将键放入相应的哈希桶中。
+线程B执行 put() 操作，计算得到了与线程A相同的哈希值，然后也将键放入相同的哈希桶中。
+由于哈希桶是共享的，线程B可能会覆盖线程A放入的键，导致线程A放入的键丢失。
