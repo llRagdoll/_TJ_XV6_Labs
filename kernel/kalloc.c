@@ -96,9 +96,10 @@ kalloc(void)
     kmem[cpu_id].freelist = r->next;
   release(&kmem[cpu_id].lock);
   
-  if(r==0){
+   
+  if(r==0){//自己的用完了
     struct run *r2;
-    for(int i=1;i<NCPU;i++){
+    for(int i=1;i<NCPU;i++){//从右边第一个邻居开始
       int next_cpu_id=(cpu_id+i)%NCPU;
       acquire(&kmem[next_cpu_id].lock);
       r2 = kmem[next_cpu_id].freelist;
@@ -106,7 +107,7 @@ kalloc(void)
         kmem[next_cpu_id].freelist = r2->next;
       }
       release(&kmem[next_cpu_id].lock);
-      if (r2) {
+      if (r2) {//成功则退出循环
         break;
       }
     }
