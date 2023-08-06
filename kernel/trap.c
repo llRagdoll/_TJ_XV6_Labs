@@ -81,13 +81,14 @@ usertrap(void)
 
     syscall();
   } else if(r_scause() == 13||r_scause() == 15){
-    //printf("mistake");
+
       uint64 va=r_stval();
       if(va>=p->sz||PGROUNDUP(va) == PGROUNDDOWN(p->trapframe->sp)){
         p->killed=1;
       }
       else{
         for(int i=0;i<NVMA;++i){
+           //找到对应vma
           if(p->VMA[i].valid&&va>=p->VMA[i].addr&&va<(p->VMA[i].addr+p->VMA[i].len)){
             uint64 pa;
             
@@ -100,6 +101,7 @@ usertrap(void)
             struct file *vf=p->VMA[i].f;
             ilock(vf->ip); 
             
+             //计算离文件开头偏移量
             int offset=PGROUNDDOWN(va-p->VMA[i].addr);
             if((readi(vf->ip, 0, pa, offset, PGSIZE))==0){
               iunlock(vf->ip);
@@ -107,7 +109,7 @@ usertrap(void)
               p->killed=1;
               break;
             }
-            //printf("hhh");
+            //设置对应的页表项权限标志
             iunlock(vf->ip);
             int flags = PTE_U | ((p->VMA[i].prot & PROT_READ) ? PTE_R : 0) |
                      ((p->VMA[i].prot & PROT_WRITE) ? PTE_W : 0) |
