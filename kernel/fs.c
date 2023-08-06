@@ -412,19 +412,21 @@ bmap(struct inode *ip, uint bn)
     return addr;
   }
   
-  bn-=NINDIRECT;
+    bn-=NINDIRECT;
   if(bn < NINDIRECT*NINDIRECT){
     // Load indirect block, allocating if necessary.
     if((addr=ip->addrs[NDIRECT+1])== 0)
       ip->addrs[NDIRECT+1]=addr=balloc(ip->dev);
+    //读取一级间接块的内容
     bp=bread(ip->dev, addr);
     a=(uint*)bp->data;
+     //如果数据块地址为0，表示还未分配数据块，则需要为其分配一个新的块，并将地址存储在b[bn%NINDIRECT]中
     if((addr=a[bn/NINDIRECT])== 0){
       a[bn/NINDIRECT]=addr=balloc(ip->dev);
       log_write(bp);
     }
     brelse(bp);
-
+    //读取二级间接块的内容
     inbp=bread(ip->dev,addr);
     b=(uint*)inbp->data;
     if((addr=b[bn%NINDIRECT])== 0){
