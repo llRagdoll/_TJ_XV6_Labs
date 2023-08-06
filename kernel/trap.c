@@ -81,9 +81,9 @@ usertrap(void)
     if(p->interval>0){
       p->times++;
       if(p->times==p->interval&&p->ison==0){
-        p->ison=1;
+        p->ison=1;//禁止再次调用handler
         memmove(p->sigtrapframe, p->trapframe, sizeof (struct trapframe));
-        p->trapframe->epc = p->sigfunc_a;
+        p->trapframe->epc = p->sigfunc_a;//保存当前指令的地址
       }
     }
     yield();
