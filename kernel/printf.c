@@ -139,8 +139,10 @@ void
 backtrace(void)
 {
   uint64 fp=r_fp();
+  //得到当前stack的函数调用界限
   uint64 top = PGROUNDUP(fp),btm = PGROUNDDOWN(fp);
   printf("backtrace:\n");
+  //返回地址储存在距离帧栈顶部（-8）偏移处， 指向上一个帧栈的指针储存在帧栈顶部（-16）偏移处
   for(;fp>=btm&&fp<top;fp=*(uint64*)(fp - 16)){
     printf("%p\n", *(uint64*)(fp - 8));
   }
