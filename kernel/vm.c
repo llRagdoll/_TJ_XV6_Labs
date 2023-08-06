@@ -373,15 +373,19 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
       p->killed=1;
     }
 
+    // 检查页表项是否有效（PTE_V标志为1）且为COW页面（PTE_RSW标志为1）
     char *mem;
     if((*pte & PTE_V) && (*pte & PTE_RSW)){
       if((mem=kalloc())==0)
         p->killed=1;
       else{
+        // 将原始页面pa0的内容复制到新分配的物理内存页面mem中
         memmove(mem, (char*)pa0, PGSIZE);
         uint flags = PTE_FLAGS(*pte);
         uvmunmap(pagetable, va0, 1, 1);
+        //更新页表项为新分配的物理内存页面地址，并将原始的标志位信息和PTE_W标志（写权限）添加到页表项中
         *pte = (PA2PTE(mem) | flags | PTE_W);
+        //取消COW页面
         *pte &= ~PTE_RSW;
         pa0 = (uint64)mem;
       }
