@@ -109,8 +109,8 @@ struct proc {
   //lab4-3
   int interval;//时间间隔
   int times;//次数
-  uint64 sigfunc_a; 
-  struct trapframe *sigtrapframe;
-  int ison;
+  uint64 sigfunc_a; //信号函数的地址
+  struct trapframe *sigtrapframe;//信号函数的trapframe
+  int ison;//是否已经在handler中
 
 };
