@@ -455,7 +455,7 @@ itrunc(struct inode *ip)
       ip->addrs[i] = 0;
     }
   }
-
+   //检查一级间接块，如果已经分配了一级间接块，则先读取该块的内容，得到一级间接块中的地址数组。然后，遍历一级间接块中的地址，如果某个地址已经被分配，则调用bfree函数释放该块。
    if(ip->addrs[NDIRECT]){
     bp = bread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
@@ -467,7 +467,7 @@ itrunc(struct inode *ip)
     bfree(ip->dev, ip->addrs[NDIRECT]);
     ip->addrs[NDIRECT] = 0;
   }
-
+  //检查二级间接块，如果已经分配了二级间接块，则先读取该块的内容，得到二级间接块中的地址数组。遍历二级间接块中的地址数组，对每个地址再次读取对应的块内容得到一个地址数组，然后遍历这个地址数组，如果某个地址已经被分配，则调用bfree函数释放该块。
   if(ip->addrs[NDIRECT+1]){
     bp=bread(ip->dev, ip->addrs[NDIRECT+1]);
     a=(uint*)bp->data;
@@ -488,7 +488,6 @@ itrunc(struct inode *ip)
     bfree(ip->dev, ip->addrs[NDIRECT+1]);
     ip->addrs[NDIRECT+1] = 0;
   }
-
 
   ip->size = 0;
   iupdate(ip);
