@@ -500,19 +500,17 @@ sys_mmap(void)
   uint64 mmap_error = 0xffffffffffffffff;
   if(argaddr(0, &addr) < 0 || argint(1, &len) < 0 || argint(2, &prot) < 0|| argint(3, &flags) < 0 || argfd(4, &fd, &f) < 0 || argint(5, &offset) < 0)
      return mmap_error;
-  
+  //检查`flags`是否为`MAP_SHARED`，并且文件不可写且请求了写权限
   if(flags==(MAP_SHARED)&&!f->writable&&(prot&PROT_WRITE))
      return mmap_error;
-// printf("hi");
   struct proc *p = myproc();
-
+  //获取当前进程的指针，并检查进程的地址空间是否还有足够的空间
   if(p->sz>MAXVA-len)
     return mmap_error;
-
+  //申请VMA
   struct vma *v;
   int idx=0;
   for(int i=0;i<NVMA;i++){
-    //printf("&%d",&p->VMA[i].valid);
     if(p->VMA[i].valid!=1){
       v=&p->VMA[i];
       v->valid=1;
@@ -522,9 +520,10 @@ sys_mmap(void)
       v->flags=flags;
       v->f=f; 
       v->offset=offset;
-
+      //文件的引用计数增加
       filedup(f);
       idx=i;
+      //更新进程的地址空间大小，返回内存映射的起始地址
       p->sz+=len;
       return (p->sz-len);
     }
@@ -532,7 +531,6 @@ sys_mmap(void)
   if(idx==NVMA)
     panic("no empty VMA");
   
-  //printf("hhhhd");
    return mmap_error;
 }
 
@@ -546,10 +544,12 @@ sys_munmap(void)
   
   struct proc *p=myproc();
   for(int i=0;i<NVMA;++i){
+      //找到vma
     if((p->VMA[i].addr==addr)||(p->VMA[i].addr+p->VMA[i].len==addr+len)){
       if((p->VMA[i].prot&PROT_WRITE)||(p->VMA[i].flags&MAP_SHARED)){
         filewrite(p->VMA[i].f,addr,len);
       }
+      //更新对应的内存映射区域的起始地址和长度
       if(p->VMA[i].addr==addr) 
         p->VMA[i].addr+=len;
       p->VMA[i].len-= len;
@@ -563,4 +563,5 @@ sys_munmap(void)
   }
   return 0;
 }
+
 
