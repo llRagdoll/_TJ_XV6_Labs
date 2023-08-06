@@ -23,12 +23,13 @@ find(char *path,char* name)
   }
   
   switch(st.type){
+  //普通文件
   case T_FILE:
     if(strcmp(path+strlen(path)-strlen(name), name) == 0) {
 			printf("%s\n", path);
 		}
     break;
-
+   //文件夹
   case T_DIR:
     if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
       printf("find: path too long\n");
@@ -46,6 +47,7 @@ find(char *path,char* name)
         printf("find: cannot stat %s\n", buf);
         continue;
       }
+      //递归搜索
       if(strcmp(buf+strlen(buf)-1, ".") != 0 && strcmp(buf+strlen(buf)-2, "..") != 0){//不要递归为“.”和“..”
           find(buf,name);
       }
