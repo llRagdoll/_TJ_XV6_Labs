@@ -1,0 +1,4 @@
+Q:Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+A:这些系统调用包括sys_getuid()、sys_getgid()和sys_getppid()。这些系统调用返回的信息在进程的整个生命周期中都保持不变，
+因此在进程创建时，可以将所需的数据存储在位于USYSCALL的共享只读页面中。
+这样，在后续调用这些系统调用时，可以直接从共享页面中读取数据，而无需涉及内核。
