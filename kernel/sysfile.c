@@ -318,6 +318,7 @@ sys_open(void)
     }
   }
 
+//如果是符号链接文件
   if(ip->type == T_SYMLINK && !(omode & O_NOFOLLOW))
   {
     int depth = 10;
@@ -330,6 +331,7 @@ sys_open(void)
         return -1;
       }
       iunlockput(ip);
+      //使用 namei 函数根据读取到的路径来获取新的 inode
       if((ip = namei(path)) == 0){
         end_op();
         return -1;
@@ -340,10 +342,12 @@ sys_open(void)
         end_op();
         return -1;
       }
+      //跳出循环
       if(ip->type != T_SYMLINK)
         break;
     }
   }
+
 
   if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
     iunlockput(ip);
@@ -522,8 +526,9 @@ sys_symlink(void)
   struct inode *ip;
   if(argstr(0,target,MAXPATH)<0||argstr(1,path,MAXPATH)< 0)
     return -1;
+   //获取文件系统的全局锁
   begin_op();
-  //create默认上锁
+  //create默认上锁,创建一个新的符号链接文件
   if((ip = create(path, T_SYMLINK, 0, 0)) == 0) {
     end_op();
     return -1;
@@ -534,6 +539,7 @@ sys_symlink(void)
     end_op();
     return -1;
   }
+  //解锁inode
   iunlockput(ip);
   end_op();
   return 0;
