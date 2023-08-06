@@ -394,13 +394,16 @@ exit(int status)
 
   release(&wait_lock);
  
-  for(int i=0;i<NVMA;++i){
+   for(int i=0;i<NVMA;++i){
     if(p->VMA[i].valid==1){
        p->VMA[i].valid=0;  
+      //将修改过的页面写回到相应的文件中
       if((p->VMA[i].prot&PROT_WRITE)||(p->VMA[i].flags&MAP_SHARED)){
         filewrite(p->VMA[i].f,p->VMA[i].addr,p->VMA[i].len);
       }
+      //关闭与该vma相关的文件
       fileclose(p->VMA[i].f);
+      //将VMA对应的内存区域从进程的页表中解除映射，释放这些虚拟地址的物理内存
       uvmunmap(p->pagetable,p->VMA[i].addr,p->VMA[i].len/PGSIZE,1);  
     }
   }
